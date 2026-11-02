@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.4.2]
+
+### Fixed 修复
+
+- OTP prompts now mask the entered code. npm assigns `latest` to a package's first publish even when `--tag bootstrap` is specified, and rejects removing `latest`; npt now warns before publishing and documents this registry limitation. OTP 输入改为掩码。npm 首发即使指定 `bootstrap` 仍会创建 `latest`，且无法删除；npt 现在提前警告并如实说明该限制。
+
 ## [0.4.1]
 
 ### Added 新增
@@ -15,7 +21,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed 修复
 
-- Placeholders publish with the `bootstrap` dist-tag (or an explicit `bootstrap-*` tag), never `latest`. Binding reconciliation preserves unrelated trusted-publisher configurations. 占位包仅使用 `bootstrap` 标签；绑定同步保留无关配置。
+- Placeholders explicitly publish with the `bootstrap` dist-tag (or an explicit `bootstrap-*` tag). Binding reconciliation preserves unrelated trusted-publisher configurations. 占位包显式使用 `bootstrap` 标签；绑定同步保留无关配置。
 - Permission comparisons work on Node 18, as promised by the package engine range. 权限比较兼容包声明的 Node 18 最低版本。
 
 ## [0.4.0]

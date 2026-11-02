@@ -1,7 +1,7 @@
 //! Interactive prompt helpers (built on @inquirer/prompts), mirroring the Rust
 //! CLI's dialoguer-based flows: line input, validated input, confirm, and OTP.
 
-import { checkbox, input, confirm as inqConfirm, select } from '@inquirer/prompts'
+import { checkbox, input, confirm as inqConfirm, password, select } from '@inquirer/prompts'
 
 import { t } from './i18n'
 
@@ -78,11 +78,12 @@ export async function promptOtp(): Promise<string> {
   const fromEnv = envOtp()
   if (fromEnv !== undefined) return fromEnv
   requireTty()
-  const otp = await input({
+  const otp = await password({
     message: t(
       'This operation requires a one-time password (2FA/OTP). Enter OTP',
       '此操作需要一次性密码(2FA/OTP),请输入 OTP',
     ),
+    mask: '*',
     validate: v => otpError(v.trim()) ?? true,
   })
   return otp.trim()
@@ -93,8 +94,9 @@ export async function promptOtpOptional(message: string): Promise<string | undef
   const fromEnv = envOtp()
   if (fromEnv !== undefined) return fromEnv
   requireTty()
-  const val = await input({
+  const val = await password({
     message,
+    mask: '*',
     validate: v => {
       const s = v.trim()
       if (s === '') return true

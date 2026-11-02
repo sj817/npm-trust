@@ -102,6 +102,12 @@ export function publishPlaceholder(name: string, otp?: string, tag = 'bootstrap'
       `→ 正在发布占位版 ${name}@0.0.1 到 ${tag}(如需要 npm 会提示输入 OTP)…`,
     ),
   )
+  process.stderr.write(
+    t(
+      '⚠ npm also assigns latest on a package’s first publication, even with --tag bootstrap. The registry does not permit removing latest; promote a verified real release promptly.\n',
+      '⚠ npm 首次发布即使指定 --tag bootstrap 仍会添加 latest，且 registry 不允许删除 latest；请尽快用已验证的正式版替换。\n',
+    ),
+  )
 
   const { cmd, prefix } = npmCommand()
   // Pin the registry: the trust API always talks to npmjs, so the placeholder

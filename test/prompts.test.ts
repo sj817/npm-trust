@@ -3,12 +3,13 @@
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { confirmGuarded } from '../src/prompts'
+import { confirmGuarded, promptOtp, promptOtpOptional } from '../src/prompts'
 
 vi.mock('@inquirer/prompts', () => ({
   checkbox: vi.fn(),
   confirm: vi.fn(),
   input: vi.fn(),
+  password: vi.fn(),
   select: vi.fn(),
 }))
 
@@ -87,5 +88,18 @@ describe('confirmGuarded', () => {
     script([], [])
     expect(await confirmGuarded('go?', true)).toBe(true)
     expect(inquirer.confirm).not.toHaveBeenCalled()
+  })
+})
+
+describe('OTP prompts', () => {
+  it('masks entered codes in both required and optional flows', async () => {
+    vi.mocked(inquirer.password).mockResolvedValueOnce('123456' as never)
+    vi.mocked(inquirer.password).mockResolvedValueOnce('' as never)
+    expect(await promptOtp()).toBe('123456')
+    expect(await promptOtpOptional('optional')).toBeUndefined()
+    for (const [options] of vi.mocked(inquirer.password).mock.calls) {
+      expect(options.mask).toBe('*')
+    }
+    expect(inquirer.input).not.toHaveBeenCalled()
   })
 })

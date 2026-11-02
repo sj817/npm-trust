@@ -36,7 +36,9 @@ Run `npt` with no arguments for the interactive menu — status, wizard, bind / 
 
 Common flags 常用参数: `--dir <path...>`, `--org <owner>`, `--workflow <file>` (default `publish.yml`), `--environment <name>`. See `npt <cmd> --help`.
 
-Use `--allow-dist-tag` when the workflow must move npm dist-tags through OIDC. Placeholder releases use `--tag bootstrap` by default; `--placeholder-tag bootstrap-<suffix>` is also accepted. The tag does not imply that the placeholder is functional. 工作流需要管理 npm dist-tag 时使用 `--allow-dist-tag`。占位版本默认只放在 `bootstrap` 标签下；也可指定 `bootstrap-<suffix>`，占位版本不代表可用发行版。
+Use `--allow-dist-tag` when the workflow must move npm dist-tags through OIDC. Placeholder releases explicitly use `--tag bootstrap` by default; `--placeholder-tag bootstrap-<suffix>` is also accepted. The tag does not imply that the placeholder is functional. 工作流需要管理 npm dist-tag 时使用 `--allow-dist-tag`。占位版本默认显式指定 `bootstrap` 标签；也可指定 `bootstrap-<suffix>`，占位版本不代表可用发行版。
+
+**First-publish limitation:** npm also creates `latest` when a name is first published with another tag, and currently rejects removing `latest`. A placeholder may therefore be the default install until a verified real version is promoted. Provision names only when the real release is nearly ready. **首发限制：**npm 即使指定其它标签，仍会给新包创建 `latest`，且目前拒绝删除它。真实版本完成验证并晋升前，默认安装可能得到占位包；请在正式版即将就绪时才执行占位发布。
 
 The wizard derives the `github:<owner/repo>@<workflow>` binding from `package.json`, scaffolds the CI workflow, first-publishes a placeholder when the name is still unused, then creates the trust binding. Batch mode scans a directory, lets packages be multi-selected, and reuses one OTP across the whole batch (npm's 2FA window lasts about 5 minutes).
 
