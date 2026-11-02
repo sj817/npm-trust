@@ -59,6 +59,8 @@ jobs:
           node --input-type=module -e "
             const m = await import('@qwqo/npm-trust')
             if (typeof m.githubTrust !== 'function') throw new Error('missing library export')
+            const a = m.githubTrust('o/r', 'publish.yml', undefined, [m.Permission.Publish])
+            if (!m.sameBinding(a, a)) throw new Error('binding comparison failed on Node 18')
           "
 
   lint:

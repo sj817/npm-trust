@@ -14,6 +14,7 @@ import {
   permissionLabel,
   resolveToken,
   sameBinding,
+  sameClaims,
   UnauthorizedError,
 } from './registry/index'
 
@@ -26,7 +27,7 @@ import type {
   TrustConfig,
 } from './registry/index'
 
-const VERSION = '0.4.0'
+const VERSION = '0.4.1'
 
 /** Workflow filename convention; derives `github:<owner/repo>@<workflow>`. */
 export const DEFAULT_WORKFLOW = 'publish.yml'
@@ -150,6 +151,7 @@ export async function assess(
   workflowOverride?: string,
   environment?: string,
   reader?: TrustReader,
+  allowDistTag = false,
 ): Promise<PackagePlan[]> {
   const plans: PackagePlan[] = []
   let readTrust = false
@@ -166,7 +168,7 @@ export async function assess(
     } catch {
       published = false
     }
-    const desired = desiredBinding(pkg, workflowOverride, environment)
+    const desired = desiredBinding(pkg, workflowOverride, environment, allowDistTag)
 
     // When the trust list is unreadable (OTP challenge, expired token, network
     // error), the status must be `unknown` — reporting `missing` would make
@@ -184,7 +186,11 @@ export async function assess(
         const configs = reader
           ? await reader.list(pkg.name)
           : await client.listTrust(pkg.name, envOtp())
-        actual = configs[0]
+        // npm allows several configs per package. Never revoke an unrelated one.
+        actual = desired
+          ? (configs.find(c => sameBinding(c, desired.config)) ??
+            configs.find(c => sameClaims(c, desired.config)))
+          : configs[0]
       } catch (error) {
         readable = false
         // An OTP challenge used to be swallowed here. It is the likeliest failure on
@@ -262,11 +268,15 @@ export function desiredBinding(
   pkg: DiscoveredPackage,
   workflowOverride?: string,
   environment?: string,
+  allowDistTag = false,
 ): undefined | { config: TrustConfig; repository: string; workflow: string } {
   const repository = pkg.repository
   if (!repository) return undefined
   const workflow = workflowOverride ?? DEFAULT_WORKFLOW
-  const config = githubTrust(repository, workflow, environment, [Permission.Publish])
+  const permissions = allowDistTag
+    ? [Permission.Publish, Permission.ManageDistTags]
+    : [Permission.Publish]
+  const config = githubTrust(repository, workflow, environment, permissions)
   return { config, repository, workflow }
 }
 

@@ -258,10 +258,13 @@ Source: `lib/commands/trust/circleci.js` → `optionsToBody` (81–96) / `bodyTo
 
 Source: `lib/commands/trust/index.js:13–16` (`PERMISSIONS`), `lib/trust-cmd.js:206–239`.
 
-| CLI flag                                                 | Permission string in `permissions[]` | Display label   |
-| -------------------------------------------------------- | ------------------------------------ | --------------- |
-| `--allow-publish`                                        | `createPackage`                      | `publish`       |
-| `--allow-stage-publish` (alias `--allow-staged-publish`) | `createStagedPackage`                | `stage publish` |
+| CLI flag                                                 | Permission string in `permissions[]` | Display label      |
+| -------------------------------------------------------- | ------------------------------------ | ------------------ |
+| `--allow-publish`                                        | `createPackage`                      | `publish`          |
+| `--allow-stage-publish` (alias `--allow-staged-publish`) | `createStagedPackage`                | `stage publish`    |
+| `npt --allow-dist-tag` (registry API)                    | `manageDistTags`                     | `manage dist-tags` |
+
+`manageDistTags` is a later registry permission documented in the [current npm Registry API](https://api-docs.npmjs.com/) and [trusted-publisher guide](https://docs.npmjs.com/trusted-publishers/). npm CLI 11.15–12.0.2 did not expose a corresponding `npm trust` flag; the table above records the inspected CLI flags separately from the newer registry capability. OIDC dist-tag operations require npm CLI 11.21.0+ or 12.2.0+.
 
 - `permissions` is an **array** built in `createConfigCommand` (lines 218–224, 238–239).
 - **At least one is mandatory** — the client throws `At least one permission flag is

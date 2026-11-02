@@ -19,6 +19,7 @@ import type { TrustConfig } from '../registry/index'
 const WRITE_SPACING_MS = 2000
 
 export interface SyncArgs {
+  allowDistTag?: boolean
   dir: string[]
   dryRun: boolean
   environment?: string
@@ -26,6 +27,7 @@ export interface SyncArgs {
   noPublish: boolean
   org?: string
   placeholder: boolean
+  placeholderTag?: string
   workflow?: string
   yes: boolean
 }
@@ -33,7 +35,7 @@ export interface SyncArgs {
 type Action =
   | { desired: TrustConfig; kind: 'create'; name: string }
   | { desired: TrustConfig; kind: 'reconcile'; name: string; oldId: string }
-  | { dir?: string; kind: 'publish'; name: string; placeholder: boolean }
+  | { dir?: string; kind: 'publish'; name: string; placeholder: boolean; tag?: string }
   | { kind: 'warnMissingWorkflow'; name: string; workflow: string }
 
 /** Returns the process exit code: 1 when the current state could not be read. */
@@ -47,30 +49,28 @@ export async function runSync(args: SyncArgs): Promise<number> {
   // challenge the registry issues even for reads) and performs the writes, so a
   // single OTP covers the whole run inside the registry's ~5-minute window.
   const writer = new Writer(client)
-  const plans = await assess(client, valid, packages, args.workflow, args.environment, writer)
+  const plans = await assess(
+    client,
+    valid,
+    packages,
+    args.workflow,
+    args.environment,
+    writer,
+    args.allowDistTag,
+  )
 
   const actions = plans.flatMap(p => planActions(p, byName.get(p.name), args))
   const unknown = plans.filter(p => p.status === 'unknown')
+  if (unknown.length > 0) {
+    console.error(
+      `Cannot safely sync: trust state is unreadable for ${unknown.map(p => p.name).join(', ')}`,
+    )
+    return 1
+  }
   if (actions.length === 0) {
     // "Nothing to do" is only true if we could actually see the current state.
     // Saying it while some packages were unreadable reports success for work that
     // was never even considered.
-    if (unknown.length > 0) {
-      console.log(
-        t(
-          `Cannot tell — the trust list for ${unknown.length} package(s) was unreadable, so nothing was planned:`,
-          `无法判断 —— 有 ${unknown.length} 个包的绑定读不出来,因此没有生成任何计划:`,
-        ),
-      )
-      for (const p of unknown) console.log(`  - ${p.name}`)
-      console.log(
-        t(
-          'Reading the trust API needs a 2FA/OTP. Re-run in a terminal, or set NPM_OTP.',
-          '读取 trust API 需要 2FA/OTP。请在终端里重新运行,或设置 NPM_OTP。',
-        ),
-      )
-      return 1
-    }
     console.log(
       t(
         'Nothing to do — all packages already in the desired state.',
@@ -95,7 +95,7 @@ export async function runSync(args: SyncArgs): Promise<number> {
     return 0
   }
 
-  await executeActions(actions, writer)
+  await executeActions(actions, writer, args.placeholderTag)
   console.log('\n' + t('✓ sync complete.', '✓ 同步完成。'))
   return 0
 }
@@ -116,7 +116,10 @@ function describeAction(a: Action): string {
     }
     case 'publish': {
       return a.placeholder
-        ? t(`publish ${a.name} (placeholder version)`, `发布 ${a.name}(占位版本)`)
+        ? t(
+            `publish ${a.name} (placeholder version, tag ${a.tag ?? 'bootstrap'})`,
+            `发布 ${a.name}(占位版本,标签 ${a.tag ?? 'bootstrap'})`,
+          )
         : t(`publish ${a.name}`, `发布 ${a.name}`)
     }
     case 'reconcile': {
@@ -139,6 +142,7 @@ async function executeAction(
   writer: Writer,
   spaceWrites: () => Promise<void>,
   publishOtp: () => Promise<string | undefined>,
+  placeholderTag: string | undefined,
 ): Promise<void> {
   switch (a.kind) {
     case 'create': {
@@ -153,7 +157,7 @@ async function executeAction(
       break
     }
     case 'publish': {
-      publish(a.name, a.dir, a.placeholder, await publishOtp())
+      publish(a.name, a.dir, a.placeholder, await publishOtp(), a.tag ?? placeholderTag)
       break
     }
     case 'reconcile': {
@@ -189,7 +193,11 @@ async function executeAction(
   }
 }
 
-async function executeActions(actions: Action[], writer: Writer): Promise<void> {
+async function executeActions(
+  actions: Action[],
+  writer: Writer,
+  placeholderTag?: string,
+): Promise<void> {
   let first = true
   const spaceWrites = async (): Promise<void> => {
     if (first) {
@@ -213,7 +221,7 @@ async function executeActions(actions: Action[], writer: Writer): Promise<void> 
   }
 
   for (const a of actions) {
-    await executeAction(a, writer, spaceWrites, publishOtp)
+    await executeAction(a, writer, spaceWrites, publishOtp, placeholderTag)
   }
 }
 
@@ -246,7 +254,13 @@ function planActions(p: PackagePlan, pkg: DiscoveredPackage | undefined, args: S
         return []
       }
       const actions: Action[] = [
-        { kind: 'publish', name: p.name, dir: pkg?.dir, placeholder: args.placeholder },
+        {
+          kind: 'publish',
+          name: p.name,
+          dir: pkg?.dir,
+          placeholder: args.placeholder,
+          tag: args.placeholder ? (args.placeholderTag ?? 'bootstrap') : undefined,
+        },
       ]
       if (p.desired) actions.push({ kind: 'create', name: p.name, desired: p.desired })
       return actions
@@ -262,9 +276,15 @@ function planActions(p: PackagePlan, pkg: DiscoveredPackage | undefined, args: S
  * from a temp dir (works even for gh-only sources with no local checkout);
  * otherwise runs `npm publish` in the package's real directory.
  */
-function publish(name: string, dir: string | undefined, placeholder: boolean, otp?: string): void {
+function publish(
+  name: string,
+  dir: string | undefined,
+  placeholder: boolean,
+  otp?: string,
+  placeholderTag?: string,
+): void {
   if (placeholder) {
-    publishPlaceholder(name, otp)
+    publishPlaceholder(name, otp, placeholderTag)
     return
   }
   if (!dir) {

@@ -18,10 +18,10 @@ export type PlatformNaming = 'go' | 'node' | 'short'
 
 /** One OS/CPU (plus libc flavour) slot in the platform matrix. */
 export interface PlatformTarget {
-  arch: 'arm64' | 'x64'
+  arch: 'arm64' | 'ppc64' | 'riscv64' | 's390x' | 'x64'
   /** Only meaningful on linux; `undefined` means the glibc build. */
   libc?: 'musl'
-  os: 'darwin' | 'linux' | 'win32'
+  os: 'android' | 'darwin' | 'freebsd' | 'linux' | 'win32'
 }
 
 /** Base word for the `scoped` scheme: `@scope/native-<os>-<arch>`. */
@@ -40,6 +40,12 @@ export const ALL_TARGETS: PlatformTarget[] = [
   { os: 'win32', arch: 'arm64' },
   { os: 'linux', arch: 'x64', libc: 'musl' },
   { os: 'linux', arch: 'arm64', libc: 'musl' },
+  { os: 'android', arch: 'arm64' },
+  { os: 'android', arch: 'x64' },
+  { os: 'freebsd', arch: 'x64' },
+  { os: 'linux', arch: 'ppc64' },
+  { os: 'linux', arch: 'riscv64' },
+  { os: 'linux', arch: 's390x' },
 ]
 
 /**
@@ -56,15 +62,27 @@ export const DEFAULT_TARGET_IDS = new Set([
 ])
 
 const OS_TOKENS: Record<PlatformNaming, Record<PlatformTarget['os'], string>> = {
-  go: { darwin: 'darwin', linux: 'linux', win32: 'windows' },
-  node: { darwin: 'darwin', linux: 'linux', win32: 'win32' },
-  short: { darwin: 'mac', linux: 'linux', win32: 'win' },
+  go: {
+    android: 'android',
+    darwin: 'darwin',
+    freebsd: 'freebsd',
+    linux: 'linux',
+    win32: 'windows',
+  },
+  node: {
+    android: 'android',
+    darwin: 'darwin',
+    freebsd: 'freebsd',
+    linux: 'linux',
+    win32: 'win32',
+  },
+  short: { android: 'android', darwin: 'mac', freebsd: 'freebsd', linux: 'linux', win32: 'win' },
 }
 
 const ARCH_TOKENS: Record<PlatformNaming, Record<PlatformTarget['arch'], string>> = {
-  go: { arm64: 'arm64', x64: 'amd64' },
-  node: { arm64: 'arm64', x64: 'x64' },
-  short: { arm64: 'arm64', x64: 'x64' },
+  go: { arm64: 'arm64', ppc64: 'ppc64', riscv64: 'riscv64', s390x: 's390x', x64: 'amd64' },
+  node: { arm64: 'arm64', ppc64: 'ppc64', riscv64: 'riscv64', s390x: 's390x', x64: 'x64' },
+  short: { arm64: 'arm64', ppc64: 'ppc64', riscv64: 'riscv64', s390x: 's390x', x64: 'x64' },
 }
 
 /** Segment charset npm accepts inside a (scoped) name. */

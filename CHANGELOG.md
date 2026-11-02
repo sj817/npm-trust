@@ -6,6 +6,18 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.4.1]
+
+### Added 新增
+
+- `--allow-dist-tag` grants `manageDistTags` alongside publish for a trusted workflow; `scan`, `audit`, `sync`, `init`, and `provision` compare the full requested permission set. `--allow-dist-tag` 可为可信 workflow 同时授予发布与 dist-tag 管理权限，相关命令按完整权限集合检查。
+- Optional platform choices now include Android arm64/x64, FreeBSD x64, and Linux ppc64/riscv64/s390x; the six existing default choices remain unchanged. 平台可选项增加 Android、FreeBSD 和 Linux 的其它架构，默认六个平台不变。
+
+### Fixed 修复
+
+- Placeholders publish with the `bootstrap` dist-tag (or an explicit `bootstrap-*` tag), never `latest`. Binding reconciliation preserves unrelated trusted-publisher configurations. 占位包仅使用 `bootstrap` 标签；绑定同步保留无关配置。
+- Permission comparisons work on Node 18, as promised by the package engine range. 权限比较兼容包声明的 Node 18 最低版本。
+
 ## [0.4.0]
 
 ### Added 新增

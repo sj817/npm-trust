@@ -7,6 +7,7 @@ import { assess, describeBinding, resolveClient, statusLabel } from '../engine'
 import type { PackagePlan } from '../engine'
 
 export interface ScanArgs {
+  allowDistTag?: boolean
   dir: string[]
   environment?: string
   limit: number
@@ -43,6 +44,14 @@ export async function runScan(args: ScanArgs): Promise<void> {
   const packages = await discoverAll(dirs, args.org, args.limit)
 
   const { client, valid } = await resolveClient(false)
-  const plans = await assess(client, valid, packages, args.workflow, args.environment)
+  const plans = await assess(
+    client,
+    valid,
+    packages,
+    args.workflow,
+    args.environment,
+    undefined,
+    args.allowDistTag,
+  )
   printTable(plans)
 }

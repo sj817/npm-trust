@@ -7,6 +7,7 @@ import { assess, describeBinding, resolveClient, statusLabel } from '../engine'
 import type { PackagePlan } from '../engine'
 
 export interface AuditArgs {
+  allowDistTag?: boolean
   dir: string[]
   environment?: string
   json: boolean
@@ -21,7 +22,15 @@ export async function runAudit(args: AuditArgs): Promise<number> {
   const packages = await discoverAll(dirs, args.org, args.limit)
 
   const { client, valid } = await resolveClient(true)
-  const plans = await assess(client, valid, packages, args.workflow, args.environment)
+  const plans = await assess(
+    client,
+    valid,
+    packages,
+    args.workflow,
+    args.environment,
+    undefined,
+    args.allowDistTag,
+  )
   const drifted = plans.filter(p => isDrift(p))
 
   if (args.json) {

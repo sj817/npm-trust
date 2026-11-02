@@ -13,7 +13,7 @@ import { runAudit } from './commands/audit'
 
 import type { OptionValues } from 'commander'
 
-const VERSION = '0.4.0'
+const VERSION = '0.4.1'
 
 // Shared option help lines (functions so `t()` runs after language detection).
 const ORG_HELP = (): string =>
@@ -28,6 +28,10 @@ const WORKFLOW_HELP = (): string =>
 const LIMIT_HELP = (): string => t('max repos to enumerate', '枚举仓库数量上限')
 const ENV_HELP = (): string =>
   t('GitHub environment claim for the binding', '绑定使用的 GitHub environment 声明')
+const DIST_TAG_HELP = (): string =>
+  t('allow the bound workflow to manage npm dist-tags', '允许绑定的 workflow 管理 npm dist-tag')
+const PLACEHOLDER_TAG_HELP = (): string =>
+  t('dist-tag for placeholders (default: bootstrap)', '占位版本 dist-tag(默认 bootstrap)')
 
 async function main(): Promise<number> {
   const program = new Command()
@@ -54,6 +58,8 @@ async function main(): Promise<number> {
     .option('--dir <path>', t('package directory', '包目录'), '.')
     .option('--workflow <file>', WORKFLOW_HELP())
     .option('--environment <name>', ENV_HELP())
+    .option('--allow-dist-tag', DIST_TAG_HELP(), false)
+    .option('--placeholder-tag <tag>', PLACEHOLDER_TAG_HELP(), 'bootstrap')
     .option(
       '--dry-run',
       t(
@@ -67,6 +73,8 @@ async function main(): Promise<number> {
         dir: opts.dir,
         workflow: opts.workflow,
         environment: opts.environment,
+        allowDistTag: opts.allowDistTag,
+        placeholderTag: opts.placeholderTag,
         dryRun: opts.dryRun,
       })
     })
@@ -81,6 +89,8 @@ async function main(): Promise<number> {
     )
     .option('--workflow <file>', WORKFLOW_HELP())
     .option('--environment <name>', ENV_HELP())
+    .option('--allow-dist-tag', DIST_TAG_HELP(), false)
+    .option('--placeholder-tag <tag>', PLACEHOLDER_TAG_HELP(), 'bootstrap')
     .option(
       '--dry-run',
       t('plan the names only; publish nothing', '只推演包名清单,不发布、不绑定'),
@@ -90,6 +100,8 @@ async function main(): Promise<number> {
       await runProvision({
         workflow: opts.workflow,
         environment: opts.environment,
+        allowDistTag: opts.allowDistTag,
+        placeholderTag: opts.placeholderTag,
         dryRun: opts.dryRun,
       })
     })
@@ -106,6 +118,7 @@ async function main(): Promise<number> {
     .option('--dir <path...>', DIR_HELP(), [])
     .option('--workflow <file>', WORKFLOW_HELP())
     .option('--environment <name>', ENV_HELP())
+    .option('--allow-dist-tag', DIST_TAG_HELP(), false)
     .option('--limit <n>', LIMIT_HELP(), parseIntArg, 200)
     .action(async (opts: OptionValues) => {
       await runScan({
@@ -113,6 +126,7 @@ async function main(): Promise<number> {
         dir: opts.dir,
         workflow: opts.workflow,
         environment: opts.environment,
+        allowDistTag: opts.allowDistTag,
         limit: opts.limit,
       })
     })
@@ -145,6 +159,8 @@ async function main(): Promise<number> {
     )
     .option('--no-publish', t('do not first-publish unpublished packages', '不对未发布的包做首发'))
     .option('--environment <name>', ENV_HELP())
+    .option('--allow-dist-tag', DIST_TAG_HELP(), false)
+    .option('--placeholder-tag <tag>', PLACEHOLDER_TAG_HELP(), 'bootstrap')
     .option('--limit <n>', LIMIT_HELP(), parseIntArg, 200)
     .action(async (opts: OptionValues) => {
       const noPublish = opts.publish === false
@@ -156,6 +172,8 @@ async function main(): Promise<number> {
         dir: opts.dir,
         workflow: opts.workflow,
         environment: opts.environment,
+        allowDistTag: opts.allowDistTag,
+        placeholderTag: opts.placeholderTag,
         dryRun: opts.dryRun,
         yes: opts.yes,
         placeholder: opts.placeholder,
@@ -177,6 +195,7 @@ async function main(): Promise<number> {
     .option('--workflow <file>', WORKFLOW_HELP())
     .option('--json', t('emit JSON', '输出 JSON'), false)
     .option('--environment <name>', ENV_HELP())
+    .option('--allow-dist-tag', DIST_TAG_HELP(), false)
     .option('--limit <n>', LIMIT_HELP(), parseIntArg, 200)
     .action(async (opts: OptionValues) => {
       exitCode = await runAudit({
@@ -184,6 +203,7 @@ async function main(): Promise<number> {
         dir: opts.dir,
         workflow: opts.workflow,
         environment: opts.environment,
+        allowDistTag: opts.allowDistTag,
         json: opts.json,
         limit: opts.limit,
       })

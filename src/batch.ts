@@ -7,7 +7,7 @@ import { errMsg } from './commands/util'
 import { describeBinding } from './engine'
 import { publishPlaceholder } from './wizard'
 import { promptOtpOptional } from './prompts'
-import { sameBinding } from './registry/index'
+import { sameBinding, sameClaims } from './registry/index'
 
 import type { Writer } from './engine'
 import type { TrustConfig } from './registry/index'
@@ -51,6 +51,7 @@ export async function configureOne(
   tgt: BatchTarget,
   writer: Writer,
   box: OtpBox,
+  placeholderTag?: string,
 ): Promise<Outcome> {
   const failed = (label: string, placeholder: boolean): Outcome => ({
     ok: false,
@@ -73,14 +74,16 @@ export async function configureOne(
   const name = tgt.name
 
   const placeholder = !tgt.published
-  if (placeholder && !(await publishWithRetry(name, writer, box))) {
+  if (placeholder && !(await publishWithRetry(name, writer, box, placeholderTag))) {
     return failed(t('publish failed', '发布失败'), false)
   }
 
   let current: TrustConfig | undefined
   try {
     const configs = await writer.list(name)
-    current = configs[0]
+    current =
+      configs.find(c => sameBinding(c, tgt.desired!)) ??
+      configs.find(c => sameClaims(c, tgt.desired!))
   } catch (error) {
     process.stderr.write(color.warn(`  list failed: ${errMsg(error)}`) + '\n')
     return failed(unbound(t('list failed', '读取绑定失败'), placeholder), placeholder)
@@ -149,10 +152,11 @@ export async function publishWithRetry(
   name: string,
   writer: Writer,
   box: OtpBox,
+  placeholderTag?: string,
 ): Promise<boolean> {
   for (;;) {
     try {
-      publishPlaceholder(name, box.otp)
+      publishPlaceholder(name, box.otp, placeholderTag)
       return true
     } catch (error) {
       process.stderr.write(color.warn(`  publish failed: ${errMsg(error)}`) + '\n')

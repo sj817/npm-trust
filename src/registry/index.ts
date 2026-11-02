@@ -22,7 +22,14 @@ export {
 } from './errors'
 export type { OtpChallenge, WebOtp } from './errors'
 
-export { githubTrust, gitlabTrust, Permission, permissionLabel, sameBinding } from './model'
+export {
+  githubTrust,
+  gitlabTrust,
+  Permission,
+  permissionLabel,
+  sameBinding,
+  sameClaims,
+} from './model'
 export type {
   CircleciClaims,
   Claims,

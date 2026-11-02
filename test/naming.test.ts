@@ -33,6 +33,10 @@ describe('platformSuffix', () => {
       ['go', WIN_ARM, 'windows-arm64'],
       ['short', { os: 'darwin', arch: 'arm64' }, 'mac-arm64'],
       ['short', WIN_ARM, 'win-arm64'],
+      ['node', { os: 'android', arch: 'arm64' }, 'android-arm64'],
+      ['node', { os: 'freebsd', arch: 'x64' }, 'freebsd-x64'],
+      ['node', { os: 'linux', arch: 'riscv64' }, 'linux-riscv64'],
+      ['go', { os: 'android', arch: 'x64' }, 'android-amd64'],
     ]
     for (const [naming, target, want] of cases) {
       expect(platformSuffix(target, naming)).toBe(want)

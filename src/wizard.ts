@@ -12,10 +12,15 @@ import { repoExists } from './github'
 import { errMsg } from './commands/util'
 import { validateOwnerRepo } from './discover'
 import { githubPublishWorkflow } from './templates'
-import { DEFAULT_REGISTRY, githubTrust, Permission } from './registry/index'
 import { confirm, confirmGuarded, promptOtpOptional, promptValidated } from './prompts'
 import {
-  bindingRepo,
+  DEFAULT_REGISTRY,
+  githubTrust,
+  Permission,
+  sameBinding,
+  sameClaims,
+} from './registry/index'
+import {
   DEFAULT_WORKFLOW,
   describeBinding,
   npmCommand,
@@ -24,12 +29,12 @@ import {
   Writer,
 } from './engine'
 
-import type { TrustConfig } from './registry/index'
-
 export interface WizardArgs {
+  allowDistTag?: boolean
   dir: string
   dryRun: boolean
   environment?: string
+  placeholderTag?: string
   workflow?: string
 }
 
@@ -70,8 +75,11 @@ export function promptPublishOtp(): Promise<string | undefined> {
   )
 }
 
-/** Publish a minimal placeholder to reserve the package name. */
-export function publishPlaceholder(name: string, otp?: string): void {
+/** Publish a minimal placeholder under a non-release dist-tag. */
+export function publishPlaceholder(name: string, otp?: string, tag = 'bootstrap'): void {
+  if (!/^bootstrap(?:-[a-z0-9][a-z0-9-]*)?$/.test(tag)) {
+    throw new Error('placeholder tag must be bootstrap or bootstrap-<suffix>')
+  }
   const slug = name.replaceAll(/[@/]/g, '-')
   const tmp = path.join(tmpdir(), `npt-placeholder-${slug}-${process.pid}`)
   mkdirSync(tmp, { recursive: true })
@@ -90,15 +98,15 @@ export function publishPlaceholder(name: string, otp?: string): void {
 
   console.log(
     t(
-      `→ publishing placeholder ${name}@0.0.1 (npm will prompt for OTP if needed)…`,
-      `→ 正在发布占位版 ${name}@0.0.1(如需要 npm 会提示输入 OTP)…`,
+      `→ publishing placeholder ${name}@0.0.1 under ${tag} (npm will prompt for OTP if needed)…`,
+      `→ 正在发布占位版 ${name}@0.0.1 到 ${tag}(如需要 npm 会提示输入 OTP)…`,
     ),
   )
 
   const { cmd, prefix } = npmCommand()
   // Pin the registry: the trust API always talks to npmjs, so the placeholder
   // must land there too even when the local npm config points at a mirror.
-  const publishArgs = [...prefix, 'publish', '--registry', DEFAULT_REGISTRY]
+  const publishArgs = [...prefix, 'publish', '--registry', DEFAULT_REGISTRY, '--tag', tag]
   // Scoped packages default to restricted; make the first publish public.
   if (name.startsWith('@')) publishArgs.push('--access', 'public')
   if (otp) publishArgs.push(`--otp=${otp}`)
@@ -161,45 +169,7 @@ export async function runWizard(args: WizardArgs): Promise<void> {
 
   const ownerRepo = await ensureRepository(pkg)
 
-  let existing: TrustConfig | undefined
-  if (published) {
-    const configs = await writer.list(name)
-    existing = configs[0]
-    if (existing) {
-      const desc = describeBinding(existing)
-      if (bindingRepo(existing) === ownerRepo) {
-        console.log(
-          color.ok(
-            t(`✓ already bound: ${desc} — nothing to do.`, `✓ 已绑定:${desc} —— 无需操作。`),
-          ),
-        )
-        console.log(
-          color.dim(
-            t(
-              '  (to change repo/workflow, revoke it first, or use the menu.)',
-              '  (若要更改 repo/workflow,请先撤销,或使用菜单。)',
-            ),
-          ),
-        )
-        return
-      }
-      process.stderr.write(
-        color.warn(
-          t(
-            `⚠ existing binding points elsewhere (drift): ${desc}`,
-            `⚠ 现有绑定指向别处(drift):${desc}`,
-          ),
-        ) + '\n',
-      )
-      if (
-        !(await confirm(
-          t('Rebind to the repository from package.json?', '改绑到 package.json 指定的仓库?'),
-        ))
-      ) {
-        return
-      }
-    }
-  }
+  const configs = published ? await writer.list(name) : []
 
   const defaultWf = args.workflow ?? DEFAULT_WORKFLOW
   const workflow = await promptWorkflow(defaultWf)
@@ -207,7 +177,25 @@ export async function runWizard(args: WizardArgs): Promise<void> {
 
   await checkGithubRepo(ownerRepo)
 
-  const desired = githubTrust(ownerRepo, workflow, args.environment, [Permission.Publish])
+  const desired = githubTrust(
+    ownerRepo,
+    workflow,
+    args.environment,
+    args.allowDistTag ? [Permission.Publish, Permission.ManageDistTags] : [Permission.Publish],
+  )
+  const existing =
+    configs.find(c => sameBinding(c, desired)) ?? configs.find(c => sameClaims(c, desired))
+  if (existing && sameBinding(existing, desired)) {
+    const desc = describeBinding(existing)
+    console.log(color.ok(t(`✓ already bound: ${desc}`, `✓ 已绑定:${desc}`)))
+    return
+  }
+  if (existing) {
+    process.stderr.write(
+      color.warn(`⚠ existing permissions differ: ${describeBinding(existing)}\n`),
+    )
+    if (!(await confirm(t('Replace this binding?', '替换此绑定?')))) return
+  }
 
   if (args.dryRun) {
     console.log(
@@ -248,7 +236,7 @@ export async function runWizard(args: WizardArgs): Promise<void> {
       return
     }
     const otp = await promptPublishOtp()
-    publishPlaceholder(name, otp)
+    publishPlaceholder(name, otp, args.placeholderTag)
     // The trust write below lands inside the same ~5-minute 2FA window.
     if (otp) writer.setOtp(otp)
   }

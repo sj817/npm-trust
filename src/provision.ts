@@ -41,8 +41,10 @@ import type { Client, Manifest, TrustConfig } from './registry/index'
 import type { ArtifactKind, NamingScheme, PlatformNaming, PlatformTarget } from './naming'
 
 export interface ProvisionArgs {
+  allowDistTag?: boolean
   dryRun: boolean
   environment?: string
+  placeholderTag?: string
   workflow?: string
 }
 
@@ -117,7 +119,12 @@ export async function runProvision(args: ProvisionArgs, existing?: Client): Prom
     args.workflow ?? DEFAULT_WORKFLOW,
     validateWorkflowFile,
   )
-  const desired = githubTrust(ownerRepo, workflow, args.environment, [Permission.Publish])
+  const desired = githubTrust(
+    ownerRepo,
+    workflow,
+    args.environment,
+    args.allowDistTag ? [Permission.Publish, Permission.ManageDistTags] : [Permission.Publish],
+  )
 
   const targets = await inspect(client, planned, ownerRepo, desired)
   printPlan(targets, desired)
@@ -138,7 +145,7 @@ export async function runProvision(args: ProvisionArgs, existing?: Client): Prom
   const rows: SummaryRow[] = []
   for (const tgt of targets) {
     console.log(`── ${tgt.name} ──`)
-    const outcome = await configureOne(tgt, writer, box)
+    const outcome = await configureOne(tgt, writer, box, args.placeholderTag)
     rows.push({ name: tgt.name, kind: kindLabel(tgt.kind), outcome })
   }
 

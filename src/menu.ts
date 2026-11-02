@@ -9,7 +9,7 @@ import { runAudit } from './commands/audit'
 import { discoverLocal, validateOwnerRepo } from './discover'
 import { configureOne, printSummary, requireId } from './batch'
 import { defaultProvisionArgs, runProvision } from './provision'
-import { githubTrust, Permission, sameBinding } from './registry/index'
+import { githubTrust, Permission, sameBinding, sameClaims } from './registry/index'
 import {
   defaultWizardArgs,
   ensureWorkflowFile,
@@ -142,7 +142,9 @@ async function bind(client: Client, name: string | undefined, snap: Snapshot): P
   }
 
   const desired = githubTrust(ownerRepo, workflow, undefined, [Permission.Publish])
-  const [current] = await writer.list(name)
+  const configs = await writer.list(name)
+  const current =
+    configs.find(c => sameBinding(c, desired)) ?? configs.find(c => sameClaims(c, desired))
   if (current) {
     if (sameBinding(desired, current)) {
       console.log(

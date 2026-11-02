@@ -3,13 +3,15 @@
 //! with `id` omitted on create and optional claim fields omitted when absent (never null).
 
 /** Allowed actions on a trusted-publisher config (npm wire values). */
-export type Permission = 'createPackage' | 'createStagedPackage'
+export type Permission = 'createPackage' | 'createStagedPackage' | 'manageDistTags'
 
 export const Permission = {
   /** `--allow-publish` */
   Publish: 'createPackage' as Permission,
   /** `--allow-stage-publish` */
   StagePublish: 'createStagedPackage' as Permission,
+  /** Allow OIDC workflows to add, move and remove npm dist-tags. */
+  ManageDistTags: 'manageDistTags' as Permission,
 }
 
 export interface CircleciClaims {
@@ -94,9 +96,19 @@ export function gitlabTrust(
   return { type: 'gitlab', claims, permissions }
 }
 
-/** Human label for a permission (`publish` / `stage publish`). */
+/** Human label for a permission. */
 export function permissionLabel(p: Permission): string {
-  return p === 'createStagedPackage' ? 'stage publish' : 'publish'
+  switch (p) {
+    case 'createPackage': {
+      return 'publish'
+    }
+    case 'createStagedPackage': {
+      return 'stage publish'
+    }
+    case 'manageDistTags': {
+      return 'manage dist-tags'
+    }
+  }
 }
 
 /**
@@ -104,11 +116,18 @@ export function permissionLabel(p: Permission): string {
  * the same permission set (order-insensitive), ignoring `id`.
  */
 export function sameBinding(a: TrustConfig, b: TrustConfig): boolean {
-  if (a.type !== b.type) return false
-  if (!deepEqual(a.claims, b.claims)) return false
-  const pa = a.permissions.toSorted((x, y) => x.localeCompare(y))
-  const pb = b.permissions.toSorted((x, y) => x.localeCompare(y))
+  if (!sameClaims(a, b)) return false
+  // `toSorted` is unavailable on Node 18, which this package still supports.
+  // eslint-disable-next-line unicorn/no-array-sort
+  const pa = [...a.permissions].sort((x, y) => x.localeCompare(y))
+  // eslint-disable-next-line unicorn/no-array-sort
+  const pb = [...b.permissions].sort((x, y) => x.localeCompare(y))
   return pa.length === pb.length && pa.every((v, i) => v === pb[i])
+}
+
+/** Same publisher identity, regardless of its granted actions. */
+export function sameClaims(a: TrustConfig, b: TrustConfig): boolean {
+  return a.type === b.type && deepEqual(a.claims, b.claims)
 }
 
 function deepEqual(a: unknown, b: unknown): boolean {

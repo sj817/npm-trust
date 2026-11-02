@@ -8,6 +8,7 @@ import {
   Permission,
   permissionLabel,
   sameBinding,
+  sameClaims,
 } from '../src/registry/index'
 
 // Not a deep-clone: JSON round-trip deliberately drops `undefined` members so
@@ -45,6 +46,7 @@ describe('model', () => {
   it('permissionLabel maps wire values to human labels', () => {
     expect(permissionLabel(Permission.Publish)).toBe('publish')
     expect(permissionLabel(Permission.StagePublish)).toBe('stage publish')
+    expect(permissionLabel(Permission.ManageDistTags)).toBe('manage dist-tags')
   })
 
   it('sameBinding is order-insensitive on permissions and ignores id', () => {
@@ -61,5 +63,17 @@ describe('model', () => {
 
     const c = githubTrust('other/repo', 'publish.yml', undefined, [Permission.Publish])
     expect(sameBinding(a, c)).toBe(false)
+    expect(sameClaims(a, b)).toBe(true)
+    expect(sameClaims(a, c)).toBe(false)
+  })
+
+  it('keeps dist-tag management distinct from publish-only', () => {
+    const publishOnly = githubTrust('o/r', 'publish.yml', 'npm', [Permission.Publish])
+    const publishAndTag = githubTrust('o/r', 'publish.yml', 'npm', [
+      Permission.Publish,
+      Permission.ManageDistTags,
+    ])
+    expect(sameClaims(publishOnly, publishAndTag)).toBe(true)
+    expect(sameBinding(publishOnly, publishAndTag)).toBe(false)
   })
 })

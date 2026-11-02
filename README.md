@@ -36,6 +36,8 @@ Run `npt` with no arguments for the interactive menu — status, wizard, bind / 
 
 Common flags 常用参数: `--dir <path...>`, `--org <owner>`, `--workflow <file>` (default `publish.yml`), `--environment <name>`. See `npt <cmd> --help`.
 
+Use `--allow-dist-tag` when the workflow must move npm dist-tags through OIDC. Placeholder releases use `--tag bootstrap` by default; `--placeholder-tag bootstrap-<suffix>` is also accepted. The tag does not imply that the placeholder is functional. 工作流需要管理 npm dist-tag 时使用 `--allow-dist-tag`。占位版本默认只放在 `bootstrap` 标签下；也可指定 `bootstrap-<suffix>`，占位版本不代表可用发行版。
+
 The wizard derives the `github:<owner/repo>@<workflow>` binding from `package.json`, scaffolds the CI workflow, first-publishes a placeholder when the name is still unused, then creates the trust binding. Batch mode scans a directory, lets packages be multi-selected, and reuses one OTP across the whole batch (npm's 2FA window lasts about 5 minutes).
 
 向导从 `package.json` 推导 `github:<owner/repo>@<workflow>` 绑定，生成 CI workflow 模板；包名未被占用时先发布占位版本，再创建信任绑定。批量模式扫描目录后勾选多个包一次性配置，整批只需输入一次 OTP（npm 的 2FA 窗口约 5 分钟）。
@@ -91,7 +93,7 @@ The wizard scaffolds `.github/workflows/publish.yml` — a GitHub Actions job wi
 
 Two caveats 两点注意:
 
-- A package must exist on the registry before a binding can be created (hence the placeholder first-publish), and npm allows one trust config per package — changing it means revoke + create. 创建绑定前包必须已存在于 registry（所以需要占位首发）；npm 每个包只允许一条信任配置，修改等于撤销后重建。
+- A package must exist on the registry before a binding can be created (hence the placeholder first-publish). npm allows multiple configurations per package; `npt` only replaces a configuration with the same publisher identity when its permissions differ, leaving unrelated configurations intact. 创建绑定前包必须已存在于 registry（所以需要占位首发）。npm 允许每个包有多条配置；`npt` 仅在同一发布者身份的权限不符时替换该配置，保留无关配置。
 - Trusted publishing takes effect only after the bound workflow actually runs on the repo; until then publishes still need a token. 可信任发布要等被绑定的 workflow 真正运行后才生效，在那之前发布仍需 token。
 
 ## Development 开发
